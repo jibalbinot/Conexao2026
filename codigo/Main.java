@@ -4,56 +4,128 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Scanner;
 
 public class Main {
 
     public static void main(String[] args) {
-        String comando;
+        Scanner scanner = new Scanner(System.in);
+        int opcao = -1;
+
+        // Loop do menu interativo: continua rodando até que o usuário escolha sair (opção 0)
+        do {
+            System.out.println("\n=================================");
+            System.out.println("   MENU - GERENCIADOR DE USUÁRIOS");
+            System.out.println("=================================");
+            System.out.println("1. Inserir novo usuário");
+            System.out.println("2. Listar todos os usuários");
+            System.out.println("0. Sair");
+            System.out.print("Escolha uma opção: ");
+
+            try {
+                // Lê a opção digitada pelo usuário no console
+                opcao = Integer.parseInt(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("Opção inválida! Por favor, digite um número.");
+                continue;
+            }
+
+            // Direciona para a funcionalidade escolhida
+            switch (opcao) {
+                case 1:
+                    inserirUsuarioConsole(scanner);
+                    break;
+                case 2:
+                    listarUsuariosConsole();
+                    break;
+                case 0:
+                    System.out.println("Encerrando o sistema. Até logo!");
+                    break;
+                default:
+                    System.out.println("Opção inválida! Tente novamente entre 0 e 2.");
+            }
+
+        } while (opcao != 0);
+
+        // Fecha o scanner ao encerrar o programa para evitar vazamento de recursos
+        scanner.close();
+    }
+
+    /**
+     * Método responsável por coletar dados via console, instanciar um JavaBean Usuario
+     * e realizar a inserção no banco de dados.
+     */
+    private static void inserirUsuarioConsole(Scanner scanner) {
+        System.out.println("\n--- CADASTRO DE NOVO USUÁRIO ---");
         
-        // Declaramos as variáveis fora do try-with-resources ou do bloco para fechá-las depois,
-        // mas vamos utilizar a própria conexão fornecida pela Factory.
-        System.out.println("Tentando conectar ao banco de dados MySQL via ConnectionFactory...");
+        System.out.print("Digite o nome do usuário: ");
+        String nome = scanner.nextLine();
 
-        // Usamos o try-with-resources do Java para garantir que a conexão, 
-        // o PreparedStatement e o ResultSet sejam fechados automaticamente ao final do bloco.
+        System.out.print("Digite a senha do usuário: ");
+        String senha = scanner.nextLine();
+
+        // Criamos o objeto JavaBean preenchendo os dados coletados
+        Usuario novoUsuario = new Usuario(nome, senha);
+
+        String sql = "INSERT INTO usuario (nome, senha) VALUES (?, ?)";
+
+        // Abrimos a conexão utilizando a ConnectionFactory (padrão Factory)
         try (Connection conexao = ConnectionFactory.conectar();
-             PreparedStatement psInsert = conexao.prepareStatement("insert into usuario (nome, senha) values (?, ?)");
-             PreparedStatement psSelect = conexao.prepareStatement("select * from usuario")) {
+             PreparedStatement ps = conexao.prepareStatement(sql)) {
 
-            if (conexao != null) {
-                System.out.println("Sucesso! Conexão com o banco 'bb' estabelecida com sucesso.");
+            // Preenche os parâmetros do comando SQL com os dados do JavaBean
+            ps.setString(1, novoUsuario.getNome());
+            ps.setString(2, novoUsuario.getSenha());
 
-                // --- 1. INSERIR UM NOVO REGISTRO ---
-                
-                // Define os valores para os parâmetros (?'s) do comando de inserção
-                psInsert.setString(1, "Adalberto");
-                psInsert.setString(2, "777");
+            // Executa a inserção no banco
+            ps.execute();
+            System.out.println("Sucesso! O usuário " + novoUsuario.getNome() + " foi cadastrado.");
 
-                // Executa o comando de inserção (sem retorno de dados)
-                psInsert.execute();
-                System.out.println("Novo usuário inserido com sucesso!\n");
+        } catch (SQLException e) {
+            System.err.println("Erro ao cadastrar usuário no banco de dados: " + e.getMessage());
+        }
+    }
 
-                // --- 2. SELECIONAR E MOSTRAR OS REGISTROS DA TABELA ---
-                
-                // Executa a consulta SQL (com retorno de dados) guardando no ResultSet
-                try (ResultSet rs = psSelect.executeQuery()) {
-                    System.out.println("--- Lista de Usuários Cadastrados ---");
-                    
-                    // Loop para percorrer todas as linhas retornadas do banco de dados
-                    while (rs.next()) {
-                        System.out.println(
-                            "ID: " + rs.getInt("id") + " | " +
-                            "Nome: " + rs.getString("nome") + " | " +
-                            "Senha: " + rs.getString("senha")
-                        );
-                    }
-                }
+    /**
+     * Método responsável por consultar o banco de dados, converter os registros 
+     * em objetos JavaBean e exibi-los formatados no console.
+     */
+    private static void listarUsuariosConsole() {
+        System.out.println("\n--- LISTA DE USUÁRIOS CADASTRADOS ---");
+        
+        String sql = "SELECT * FROM usuario";
+
+        // Conecta ao banco e executa a consulta
+        try (Connection conexao = ConnectionFactory.conectar();
+             PreparedStatement ps = conexao.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            boolean encontrouRegistros = false;
+
+            // Percorre cada linha retornada pelo banco de dados
+            while (rs.next()) {
+                encontrouRegistros = true;
+
+                // Mapeia os dados do banco para um objeto JavaBean Usuario
+                Usuario usuario = new Usuario();
+                usuario.setId(rs.getInt("id"));
+                usuario.setNome(rs.getString("nome"));
+                usuario.setSenha(rs.getString("senha"));
+
+                // Exibe os dados utilizando os métodos get do JavaBean
+                System.out.println(
+                    "ID: " + usuario.getId() + " | " +
+                    "Nome: " + usuario.getNome() + " | " +
+                    "Senha: " + usuario.getSenha()
+                );
+            }
+
+            if (!encontrouRegistros) {
+                System.out.println("Nenhum usuário encontrado na tabela.");
             }
 
         } catch (SQLException e) {
-            // Captura erros relacionados à execução dos comandos SQL
-            System.err.println("Erro durante a execução das operações no banco de dados.");
-            e.printStackTrace();
+            System.err.println("Erro ao listar os usuários: " + e.getMessage());
         }
     }
 }
