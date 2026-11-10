@@ -10,9 +10,10 @@
             "server": "localhost",
             "port": 3306,
             "driver": "MySQL",
-            "name": "bb",
+            "name": "TesteBB",
             "database": "bb",
-            "username": "root"
+            "username": "root",
+            "password": ""
         }
     ]
 }

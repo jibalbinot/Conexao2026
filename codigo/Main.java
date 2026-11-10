@@ -1,6 +1,6 @@
 package codigo;
+
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -8,72 +8,51 @@ import java.sql.SQLException;
 public class Main {
 
     public static void main(String[] args) {
-        // URL de conexão com o banco 'bb' rodando na porta padrão (3306)
-        String url = "jdbc:mysql://localhost:3306/bb?useSSL=false&serverTimezone=UTC";
-        String usuario = "root"; // Usuário padrão do MySQL
-        String senha = "";      // Sem senha, conforme solicitado
         String comando;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
+        
+        // Declaramos as variáveis fora do try-with-resources ou do bloco para fechá-las depois,
+        // mas vamos utilizar a própria conexão fornecida pela Factory.
+        System.out.println("Tentando conectar ao banco de dados MySQL via ConnectionFactory...");
 
-        System.out.println("Tentando conectar ao banco de dados MySQL...");
-
-        try {
-            // Carrega o driver JDBC (opcional em versões mais recentes, mas recomendado)
-            Class.forName("com.mysql.cj.jdbc.Driver");
-
-            // Estabelece a conexão
-            Connection conexao = DriverManager.getConnection(url, usuario, senha);
+        // Usamos o try-with-resources do Java para garantir que a conexão, 
+        // o PreparedStatement e o ResultSet sejam fechados automaticamente ao final do bloco.
+        try (Connection conexao = ConnectionFactory.conectar();
+             PreparedStatement psInsert = conexao.prepareStatement("insert into usuario (nome, senha) values (?, ?)");
+             PreparedStatement psSelect = conexao.prepareStatement("select * from usuario")) {
 
             if (conexao != null) {
                 System.out.println("Sucesso! Conexão com o banco 'bb' estabelecida com sucesso.");
+
+                // --- 1. INSERIR UM NOVO REGISTRO ---
                 
+                // Define os valores para os parâmetros (?'s) do comando de inserção
+                psInsert.setString(1, "Adalberto");
+                psInsert.setString(2, "777");
+
+                // Executa o comando de inserção (sem retorno de dados)
+                psInsert.execute();
+                System.out.println("Novo usuário inserido com sucesso!\n");
+
+                // --- 2. SELECIONAR E MOSTRAR OS REGISTROS DA TABELA ---
                 
-                // inserir um novo registro
-
-                //criei o comando
-                comando = "insert into usuario (nome,senha) values (?,?)";
-                
-                //prapara o comando
-                ps = conexao.prepareStatement(comando);
-                
-                //carrega os dados
-                ps.setString(1, "Lindsay");
-                ps.setString(2, "555");
-
-                //executar o comando (sem retorno)
-                //ps.execute();
-
-                // selecionar e mostrar os registros da tabela usuario
-                
-                //crei o comando
-                comando = "select * from usuario";
-
-                //preparar o comando
-                ps = conexao.prepareStatement(comando);
-
-                //executa o comando (com retorno)
-                rs = ps.executeQuery();
-
-                //loop para mostrar na tela
-                while (rs.next()) {
-                    System.out.println(
-                        rs.getInt("id")+" | "+
-                        rs.getString("nome")+" | "+
-                        rs.getString("senha") 
-                    );
+                // Executa a consulta SQL (com retorno de dados) guardando no ResultSet
+                try (ResultSet rs = psSelect.executeQuery()) {
+                    System.out.println("--- Lista de Usuários Cadastrados ---");
+                    
+                    // Loop para percorrer todas as linhas retornadas do banco de dados
+                    while (rs.next()) {
+                        System.out.println(
+                            "ID: " + rs.getInt("id") + " | " +
+                            "Nome: " + rs.getString("nome") + " | " +
+                            "Senha: " + rs.getString("senha")
+                        );
+                    }
                 }
-
-                rs.close();
-                ps.close();
-                conexao.close();
             }
 
-        } catch (ClassNotFoundException e) {
-            System.err.println("Erro: Driver JDBC do MySQL não encontrado no projeto.");
-            e.printStackTrace();
         } catch (SQLException e) {
-            System.err.println("Erro: Falha ao conectar ao banco de dados.");
+            // Captura erros relacionados à execução dos comandos SQL
+            System.err.println("Erro durante a execução das operações no banco de dados.");
             e.printStackTrace();
         }
     }
