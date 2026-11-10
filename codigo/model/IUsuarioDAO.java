@@ -1,4 +1,4 @@
-package codigo;
+package codigo.model;
 
 import java.util.List;
 

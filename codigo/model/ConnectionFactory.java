@@ -1,4 +1,4 @@
-package codigo;
+package codigo.model;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

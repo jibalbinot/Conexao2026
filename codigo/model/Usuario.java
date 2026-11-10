@@ -1,4 +1,4 @@
-package codigo;
+package codigo.model;
 
 /**
  * A classe Usuario é um JavaBean (ou Entidade).
